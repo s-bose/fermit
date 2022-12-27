@@ -17,9 +17,10 @@ What stil needs some thought
 
 ## PART-1) Generating roles
 Reads and creates `Roles`, `Permissions` & `Resources` (with something like `FermitGenerator` class)
-    * `Roles` are directly tied to an _user_, e.g., **Manager**, **Admin**, **Customer**, etc
-    * `Permissions` are tied to both a `Role` as well as a _user_. One user will have one base permission associated with them, upon adding / removing cetain resources from the user, the Permission will change.
-    * `Resources` are different predefined components of the system. These are directly tied to an `user`'s permission
+
+ * `Roles` are directly tied to an _user_, e.g., **Manager**, **Admin**, **Customer**, etc
+ * `Permissions` are tied to both a `Role` as well as a _user_. One user will have one base permission associated with them, upon adding / removing cetain resources from the user, the Permission will change.
+ * `Resources` are different predefined components of the system. These are directly tied to an `user`'s permission
 
 Say the input to `Fermit` was
 
