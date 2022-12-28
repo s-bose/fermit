@@ -159,3 +159,20 @@ In case of some conflict, such as
 + Finally it accesses based on these sequence and returns a list like so `product.create`, `product.edit`, etc (format `RESOURCE.ACCESS`)
 
 ---
+
+# 2022-12-28 17:42:48
+
+## Notes about implementation details
+The notes above describe the structurre in the form of db tables, which can be implemented easily.
+The main question is, will fermit be a no-db solution by default? or db-only by default?
+
+#### 1. No-db solution
+We need to have a Fermit core class which can be instantiated as a single entrypoint.
+All resources/roles/permissions defined will have to be latched onto that.
+
+Different fermit instances will be completely isolated containers with their separate IAM config.
+
+#### 2. db solution
+We can bind these two together. So that the Fermit class can be optionally passed the db dsn for it
+to connect to and create the necessary tables.
+ 
