@@ -176,3 +176,17 @@ Different fermit instances will be completely isolated containers with their sep
 We can bind these two together. So that the Fermit class can be optionally passed the db dsn for it
 to connect to and create the necessary tables.
  
+## Open Questions
+1. What should we do with sub-resources?
+Is a sub-resource always bound to its parent resource?
+In that case, you cannot give someone direct permission to the sub-resource.
+Example:
+
+resource A: {"add", "edit", "delete", "B.add", "B.delete"}
+
+\# resource C trying to have access to B:
+
+resource C: {"add", "edit", "A.add", "A.edit", "A.B.add", "A.B.delete"}
+
+
+2. 
