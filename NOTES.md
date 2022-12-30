@@ -188,5 +188,7 @@ resource A: {"add", "edit", "delete", "B.add", "B.delete"}
 
 resource C: {"add", "edit", "A.add", "A.edit", "A.B.add", "A.B.delete"}
 
+Ans. subresources will be bound to its parent resource.
+Meaning. `A.B.add` is different from `C.B.add`
 
 2. 
