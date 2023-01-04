@@ -52,3 +52,5 @@ class Resource(BaseModel):
             'c': {'.': ['add']}
         }
         """
+
+        
