@@ -1,0 +1,1 @@
+MAX_ACL_PER_RESOURCE: int = 8
