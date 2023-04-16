@@ -191,4 +191,218 @@ resource C: {"add", "edit", "A.add", "A.edit", "A.B.add", "A.B.delete"}
 Ans. subresources will be bound to its parent resource.
 Meaning. `A.B.add` is different from `C.B.add`
 
-2. 
+
+
+## 2023-04-16 18:41:09 
+### New Details
+
+We have to add a sort of controller level decorator for each endpoint in FastAPI.
+Such as below:
+
+```python
+
+from fastapi import APIRouter, Security
+from app.permissions.resources import Item # assuming the following structure
+# - app
+#   - permissions
+#     - resources.py -> class item(fermit.Resource)
+from app.crud.item import item_service
+
+item_route = APIRouter("/item")
+
+@item_route.post("/")
+async def post_item(*, current_user = Security(get_current_user), scopes=[Item.read, Item.create], item: ItemCreate):
+  if item := await item_service.get(item.id):
+    raise HTTPException(400, "item already exists")
+  item_new = await item_service.create(**item.dict())
+  return item_new
+```
+
+For setting all the scopes you have to import all the resources inside your scope.
+By default all the resource objs have a `__repr__` that will generate the composed string that covers all the acls into a conclusive integer.
+Such as, if there's a resource A: {create, read, update, delete, B.create, B.read, B.delete} then the string repr for A is:
+```
+create : 1
+read   : 2
+update : 4
+delete : 8
+B.create : 16
+B.read : 32
+B.update : 64
+
+TOTAL : 127
+```
+So when we do `repr(A)`, or `A.value`, we will get `127`, and `A.desc` will give us a dictionary of the individual acs:
+```python
+{
+  "A.create": 1,
+  "read"   : 2,
+  "update" : 4,
+  "delete" : 8,
+  "B.create" : 16,
+  "B.read" : 32,
+  "B.update" : 64,
+}
+```
+
+Thus, when we want to initialize our fastapi oauth2_scheme with the scopes, we will have to add all the resouce scopes at one place.
+We can do it in this way:
+
+```python
+from app.permissions.resources import *
+
+
+oauth2_scheme = OAuth2PasswordBearer(
+    tokenUrl="api/v1/user/token",
+    scopes={A.name: A.value, X.name: X.value, some_other_res.name: some_other_res.value}, # scopes receive a dict with resource name as key, and its description as value
+)
+```
+
+or, if we can use fermit to ease this process.
+
+```python
+
+from fermit.utils import generate_scope
+from app.permissions import resources
+
+scopes = generate_scope(resources)
+oauth2_scheme = OAuth2PasswordBearer(
+    tokenUrl="api/v1/user/token", 
+    scopes=scopes
+)
+```
+
+Once the scopes are set, we now come to the part where we authenticate users. But before that we need to know how are they getting the permissions in the first place which we will validate later. For that we will use JWT tokens.
+
+```python
+from app.permissions import roles # Roles are defined as followed:
+'''
+from fermit import Role
+from app.permissions.resources import A, B, C
+
+# app/permissions/roles.py
+
+class User(Role):
+  permissions = [
+    A.create,
+    A.read,
+    B.create,
+    B.read
+  ]
+
+class Admin(Role):
+  permissions = [
+    A.*,
+    B.*,
+    C.*
+  ]
+'''
+from fermit.utils import get_permissions_for_role
+from app.permissions import roles
+
+@app.post("/api/v1/user/register")
+async def register_user(username: str, password: str):
+  return await user_svc.create_user(username, password, role=roles.User)
+
+
+@app.post("/api/v1/user/token", response_model=Token)
+async def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends()):
+    user = await user_svc.authenticate_user(form_data.username, form_data.password)
+    if not user:
+        raise HTTPException(status_code=400, detail="Incorrect username or password")
+
+    permissions: dict[str, int] = get_permissions_for_role(user.role) 
+    access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+    access_token = create_access_token(
+        data={"sub": user.username, "scopes": permissions},
+        expires_delta=access_token_expires,
+    )
+    return {"access_token": access_token, "token_type": "bearer"}
+```
+
+To authenticate a logged in user's JWT token, we need a dependency, as followed:
+
+```python
+from fermit.utils import validate_permissions
+
+async def get_current_user(security_scopes: SecurityScopes, token: str = Depends(oauth2_scheme)):
+    if security_scopes.scopes:
+        authenticate_value = f'Bearer scope="{security_scopes.scope_str}"'
+    else:
+        authenticate_value = "Bearer"
+    credentials_exception = HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="Could not validate credentials",
+        headers={"WWW-Authenticate": authenticate_value},
+    )
+    try:
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        username: str = payload.get("sub")
+        if username is None:
+            raise credentials_exception
+        token_scopes = payload.get("scopes", [])
+        token_data = TokenData(scopes=token_scopes, username=username)
+    except (JWTError, ValidationError):
+        raise credentials_exception
+    user = get_user(fake_users_db, username=token_data.username)
+    if user is None:
+        raise credentials_exception
+    
+    for scope in security_scopes.scopes:
+        if scope not in token_data.scopes:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Not enough permissions",
+                headers={"WWW-Authenticate": authenticate_value},
+            )
+        
+        validate_permissions(scope, token_data.scopes[scope])
+
+    return user
+```
+
+
+To create an authenticated endpoint, we proceed as followed:
+
+```python
+from fermit.utils import get_permissions_for_role
+from app.permissions.roles import User
+
+@route.get("/analytics")
+async def get_analytics(
+  current_user = Security(
+    get_current_user, 
+    scopes=[get_permissions_for_role(User)]
+    )
+):
+  ...
+
+# this will enable RBAC-based auth
+```
+
+This is an example of RBAC-enabled auth where permissions are clustered into designated roles and the login flow and access control for endpoints is also specific to roles.
+
+However, should the need arise, there is also a way to do this on a permission-level. As followed:
+
+```python
+from app.permissions.resources import analytics
+
+@route.get("/analytics")
+async def get_analytics(
+  current_user = Security(
+    get_current_user, 
+    scopes=[analytics.read]
+    )
+):
+  ...
+
+
+@route.post("/analytics")
+async def get_analytics(
+  current_user = Security(
+    get_current_user, 
+    scopes=[analytics.read, analytics.create]
+    )
+):
+  ...
+```
