@@ -9,15 +9,11 @@ from fermit.core.constants import MAX_ACTIONS_PER_RESOURCE
 class Resource:
     def __init_subclass__(cls, **kwargs):
         super().__init_subclass__(**kwargs)
-        for base in cls.__base__:
-            pass
-
-        if not any(isinstance(b, ResourceMeta) for b in bases):
-            return cls
-
-        for b in bases:
-            if isinstance(b, ResourceMeta) and b is not Resource:
-                raise TypeError(f"Resource {name} cannot inherit from another resource {b.__name__}")
+        for base in cls.__bases__:
+            if base is not Resource and issubclass(base, Resource):
+                raise TypeError(
+                    f"Resource {cls.__name__} cannot inherit from another resource {base.__name__}"
+                )
 
         actions: tuple[Any, ...] = namespace.get("actions", ())
         if not actions:
