@@ -10,7 +10,6 @@ Actions, after created are immutable.
 
 from __future__ import annotations
 
-from asyncio import Runner
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, overload
 
@@ -81,3 +80,24 @@ class BoundAction:
             raise RuntimeError("position is not set, cannot mask")
 
         return 1 << self.position
+
+
+@dataclass(frozen=True, slots=True)
+class ActionSet:
+    resource: type[Resource]
+    actions: list[BoundAction]
+    description: str | None = None
+
+    def mask(self):
+        mask = 0
+        for action in self.actions:
+            mask |= action.mask()
+        return mask
+
+    @classmethod
+    def from_actions(cls, *actions: BoundAction, description: str | None = None):
+        resources = {a.resource for a in actions if a.resource is not None}
+        if not resources or len(resources) > 1:
+            raise ValueError("all actions must belong to the same resource")
+
+        return cls(resource=list(resources)[0], actions=list(actions), description=description)

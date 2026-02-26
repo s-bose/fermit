@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import ClassVar, Mapping
 
-from fermit.core.action import BoundAction
+from fermit.core.action import BoundAction, ActionSet
 from fermit.core.constants import MAX_ACTIONS_PER_RESOURCE
 
 
@@ -17,15 +17,19 @@ class Resource:
                     f"Resource {cls.__name__} cannot inherit from another resource {base.__name__}"
                 )
 
-        filtered_fields = {k: v for k, v in cls.__dict__.items() if isinstance(v, BoundAction)}
-        if len(filtered_fields) > MAX_ACTIONS_PER_RESOURCE - 1:
+        filtered_fields = {
+            k: v for k, v in cls.__dict__.items() if isinstance(v, BoundAction)
+        }
+        if len(filtered_fields) > MAX_ACTIONS_PER_RESOURCE:
             raise ValueError(
-                f"Resource {cls.__name__} cannot have more than {MAX_ACTIONS_PER_RESOURCE - 1} actions"
+                f"Resource {cls.__name__} cannot have more than {MAX_ACTIONS_PER_RESOURCE} actions"
             )
 
         for index, (key, value) in enumerate(filtered_fields.items()):
             if value.position and value.position != index:
-                raise ValueError(f"Action {key} has a position that is not the expected index {index}")
+                raise ValueError(
+                    f"Action {key} has a position that is not the expected index {index}"
+                )
             bound_action = BoundAction(
                 name=key,
                 resource=cls,
@@ -46,22 +50,8 @@ class Resource:
         return super().__new__(cls)
 
     @property
-    def all(self) -> BoundAction:
-        if len(self._bound_actions) >= MAX_ACTIONS_PER_RESOURCE - 1:
-            return BoundAction(
-                name="all",
-                resource=self.__class__,
-                position=MAX_ACTIONS_PER_RESOURCE,
-                description="A special action that represents all actions of this resource",
-                aliases=("*",),
-                serialize_as="*",
-            )
-
-        return BoundAction(
-            name="all",
-            resource=self.__class__,
-            position=len(self._bound_actions),
-            description="A special action that represents all actions of this resource",
-            aliases=("*",),
-            serialize_as="*",
+    def all(self) -> ActionSet:
+        values = self._bound_actions.values()
+        return ActionSet.from_actions(
+            *values, description="All actions for this resource"
         )
