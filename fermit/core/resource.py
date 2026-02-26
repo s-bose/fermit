@@ -47,7 +47,7 @@ class Resource:
     def __new__(cls, *args, **kwargs):
         if cls is not Resource:
             raise TypeError(f"Resource {cls.__name__} is not instantiable")
-        return super().__new__(cls)
+        return super().__new__(cls, *args, **kwargs)
 
     @property
     def all(self) -> ActionSet:

@@ -1,8 +1,0 @@
-roles {
-    user {},
-    admin {},
-    accounts_admin {},
-    organizations_admin {},
-    superadmin {},
-}
-
