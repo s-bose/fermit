@@ -18,9 +18,9 @@ class Resource:
                 )
 
         filtered_fields = {k: v for k, v in cls.__dict__.items() if isinstance(v, BoundAction)}
-        if len(filtered_fields) > MAX_ACTIONS_PER_RESOURCE:
+        if len(filtered_fields) > MAX_ACTIONS_PER_RESOURCE - 1:
             raise ValueError(
-                f"Resource {cls.__name__} cannot have more than {MAX_ACTIONS_PER_RESOURCE} actions"
+                f"Resource {cls.__name__} cannot have more than {MAX_ACTIONS_PER_RESOURCE - 1} actions"
             )
 
         for index, (key, value) in enumerate(filtered_fields.items()):
@@ -44,3 +44,24 @@ class Resource:
         if cls is not Resource:
             raise TypeError(f"Resource {cls.__name__} is not instantiable")
         return super().__new__(cls)
+
+    @property
+    def all(self) -> BoundAction:
+        if len(self._bound_actions) >= MAX_ACTIONS_PER_RESOURCE - 1:
+            return BoundAction(
+                name="all",
+                resource=self.__class__,
+                position=MAX_ACTIONS_PER_RESOURCE,
+                description="A special action that represents all actions of this resource",
+                aliases=("*",),
+                serialize_as="*",
+            )
+
+        return BoundAction(
+            name="all",
+            resource=self.__class__,
+            position=len(self._bound_actions),
+            description="A special action that represents all actions of this resource",
+            aliases=("*",),
+            serialize_as="*",
+        )

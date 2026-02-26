@@ -57,12 +57,14 @@ class BoundAction:
     def __repr__(self) -> str:
         if not self.resource:
             raise RuntimeError("no resource configured, invalid action")
-        return f"{self.resource.__name__}.{self.name} #{self.position}"
+
+        name = self.serialize_as if self.serialize_as is not None else self.name
+        if not name:
+            raise RuntimeError("no name configured, invalid action")
+        return f"{self.resource.__name__}.{name} #{self.position}"
 
     @property
     def value(self) -> str:
-        if self.serialize_as:
-            return self.serialize_as
         return self.__repr__()
 
     def __eq__(self, other: object, /) -> bool:
