@@ -1,8 +1,8 @@
 from __future__ import annotations
 
-from typing import Any, ClassVar, Mapping, Sequence
+from typing import ClassVar, Mapping
 
-from fermit.core.action import Action, BoundAction
+from fermit.core.action import BoundAction
 from fermit.core.constants import MAX_ACTIONS_PER_RESOURCE
 
 
@@ -28,10 +28,11 @@ class Resource:
                 raise ValueError(f"Action {key} has a position that is not the expected index {index}")
             bound_action = BoundAction(
                 name=key,
+                resource=cls,
                 position=index,
                 description=value.description,
                 aliases=value.aliases,
-                resource=cls,
+                serialize_as=value.serialize_as,
             )
             filtered_fields[key] = bound_action
 
