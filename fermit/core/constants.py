@@ -1,0 +1,3 @@
+import os
+
+MAX_ACTIONS_PER_RESOURCE = int(os.environ.get("FERMIT_MAX_ACTIONS_PER_RESOURCE", "32"))
