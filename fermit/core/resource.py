@@ -1,12 +1,15 @@
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, ClassVar, Mapping, Sequence
 
 from fermit.core.action import Action, BoundAction
 from fermit.core.constants import MAX_ACTIONS_PER_RESOURCE
 
 
 class Resource:
+    actions: ClassVar[Sequence[str | Action]]
+    _bound_actions: ClassVar[Mapping[str, BoundAction]]
+
     def __init_subclass__(cls, **kwargs):
         super().__init_subclass__(**kwargs)
         for base in cls.__bases__:
@@ -15,12 +18,14 @@ class Resource:
                     f"Resource {cls.__name__} cannot inherit from another resource {base.__name__}"
                 )
 
-        actions: tuple[Any, ...] = namespace.get("actions", ())
+        actions: tuple[Any, ...] = cls.__dict__.get("actions", ())
         if not actions:
-            raise ValueError(f"Resource {name} must define at least one action")
+            raise ValueError(f"Resource {cls.__name__} must define at least one action")
 
         if len(actions) > MAX_ACTIONS_PER_RESOURCE:
-            raise ValueError(f"Resource {name} cannot have more than {MAX_ACTIONS_PER_RESOURCE} actions")
+            raise ValueError(
+                f"Resource {cls.__name__} cannot have more than {MAX_ACTIONS_PER_RESOURCE} actions"
+            )
 
         filtered_actions: list[Action] = []
         unique_action_names = set[str]()
@@ -40,3 +45,16 @@ class Resource:
 
             unique_action_names.add(entry.name)
             filtered_actions.append(entry)
+        cls.actions = tuple(filtered_actions)
+        cls._bound_actions = {
+            action.name: BoundAction.from_action(action, cls, index)
+            for index, action in enumerate(filtered_actions)
+        }
+
+        for bound_action in cls._bound_actions.values():
+            setattr(cls, bound_action.name, bound_action)
+
+    def __new__(cls, *args, **kwargs):
+        if cls is not Resource:
+            raise TypeError(f"Resource {cls.__name__} is not instantiable")
+        return super().__new__(cls)

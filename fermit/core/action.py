@@ -10,71 +10,37 @@ Actions, after created are immutable.
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Self, final
+from dataclasses import dataclass
+from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from fermit.core.resource import Resource
 
 
-@final
+@dataclass(frozen=True, slots=True)
 class Action:
-    __slots__ = ("_name", "_description", "_alias")
-
-    def __init__(
-        self,
-        name: str,
-        *,
-        description: str | None = None,
-        aliases: tuple[str, ...] | None = None,
-    ) -> None:
-        if not name.isidentifier():
-            raise ValueError(f"Action name must be a valid identifier, got {name}")
-
-        self._name = name
-        self._description = description
-        self._aliases = aliases
-
-    @property
-    def name(self) -> str:
-        return self._name
-
-    @property
-    def description(self) -> str | None:
-        return self._description
-
-    @property
-    def aliases(self) -> tuple[str, ...]:
-        return self._aliases or ()
+    name: str
+    description: str | None = None
+    aliases: tuple[str, ...] | None = None
 
 
-@final
+@dataclass(frozen=True, slots=True)
 class BoundAction:
-    def __init__(
-        self,
-        resource: type[Resource],
-        name: str,
-        position: int,
-        description: str | None = None,
-        aliases: tuple[str, ...] | None = None,
-    ):
-        self._resource = resource
-        self._name = name
-        self._description = description
-        self._aliases = aliases
-        self._position = position
-        self._mask = 1 << position
-
-    @property
-    def name(self) -> str:
-        return self._name
-
-    @property
-    def description(self) -> str | None:
-        return self._description
-
-    @property
-    def alias(self) -> tuple[str, ...]:
-        return self._aliases or ()
+    resource: type[Resource]
+    name: str
+    position: int
+    description: str | None = None
+    aliases: tuple[str, ...] | None = None
 
     def __repr__(self):
-        return f"{self._resource}.{self._name}: {self._position}"
+        return f"{self.resource}.{self.name}: {self.position}"
+
+    @classmethod
+    def from_action(cls, action: Action, resource: type[Resource], position: int):
+        return cls(
+            resource=resource,
+            name=action.name,
+            position=position,
+            description=action.description,
+            aliases=action.aliases,
+        )
