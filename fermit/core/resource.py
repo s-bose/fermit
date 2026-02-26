@@ -7,7 +7,6 @@ from fermit.core.constants import MAX_ACTIONS_PER_RESOURCE
 
 
 class Resource:
-    actions: ClassVar[Sequence[str | Action]]
     _bound_actions: ClassVar[Mapping[str, BoundAction]]
 
     def __init_subclass__(cls, **kwargs):
@@ -18,41 +17,27 @@ class Resource:
                     f"Resource {cls.__name__} cannot inherit from another resource {base.__name__}"
                 )
 
-        actions: tuple[Any, ...] = cls.__dict__.get("actions", ())
-        if not actions:
-            raise ValueError(f"Resource {cls.__name__} must define at least one action")
-
-        if len(actions) > MAX_ACTIONS_PER_RESOURCE:
+        filtered_fields = {k: v for k, v in cls.__dict__.items() if isinstance(v, BoundAction)}
+        if len(filtered_fields) > MAX_ACTIONS_PER_RESOURCE:
             raise ValueError(
                 f"Resource {cls.__name__} cannot have more than {MAX_ACTIONS_PER_RESOURCE} actions"
             )
 
-        filtered_actions: list[Action] = []
-        unique_action_names = set[str]()
-        for entry in actions:
-            if isinstance(entry, str):
-                entry = Action(
-                    name=entry,
-                )
-            elif not isinstance(entry, Action):
-                raise TypeError(f"Entries in 'actions' must be a str or Action, got {type(entry).__name__}")
+        for index, (key, value) in enumerate(filtered_fields.items()):
+            if value.position and value.position != index:
+                raise ValueError(f"Action {key} has a position that is not the expected index {index}")
+            bound_action = BoundAction(
+                name=key,
+                position=index,
+                description=value.description,
+                aliases=value.aliases,
+                resource=cls,
+            )
+            filtered_fields[key] = bound_action
 
-            if entry.name in unique_action_names:
-                raise ValueError(f"Action {entry.name} already exists in resource")
-
-            if len(entry.name.split(".")) > 1:
-                raise ValueError(f"Action name {entry.name} cannot contain dots")
-
-            unique_action_names.add(entry.name)
-            filtered_actions.append(entry)
-        cls.actions = tuple(filtered_actions)
-        cls._bound_actions = {
-            action.name: BoundAction.from_action(action, cls, index)
-            for index, action in enumerate(filtered_actions)
-        }
-
-        for bound_action in cls._bound_actions.values():
-            setattr(cls, bound_action.name, bound_action)
+        cls._bound_actions = filtered_fields
+        for key, bound_action in filtered_fields.items():
+            setattr(cls, key, bound_action)
 
     def __new__(cls, *args, **kwargs):
         if cls is not Resource:
