@@ -1,0 +1,40 @@
+{
+  "version": "1",
+  "metadata": {
+    "marimo_version": "0.20.2"
+  },
+  "cells": [
+    {
+      "id": "Hbol",
+      "code_hash": "102f1a2dce09d0d8fb7e581d731cdc97",
+      "outputs": [
+        {
+          "type": "data",
+          "data": {
+            "text/plain": ""
+          }
+        }
+      ],
+      "console": []
+    },
+    {
+      "id": "bDhR",
+      "code_hash": "0f36983412af404e5dac036577895160",
+      "outputs": [
+        {
+          "type": "data",
+          "data": {
+            "application/json": "[\"text/plain:ActionSet(resource=<class '__main__.Product'>, actions=[Product.create #0, Product.delete #1], description=None)\"]"
+          }
+        }
+      ],
+      "console": []
+    },
+    {
+      "id": "FVqs",
+      "code_hash": null,
+      "outputs": [],
+      "console": []
+    }
+  ]
+}

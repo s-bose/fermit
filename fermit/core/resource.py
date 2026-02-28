@@ -8,6 +8,7 @@ from fermit.core.constants import MAX_ACTIONS_PER_RESOURCE
 
 class Resource:
     _bound_actions: ClassVar[Mapping[str, BoundAction]]
+    all: ClassVar[ActionSet]
 
     def __init_subclass__(cls, **kwargs):
         super().__init_subclass__(**kwargs)
@@ -44,14 +45,9 @@ class Resource:
         for key, bound_action in filtered_fields.items():
             setattr(cls, key, bound_action)
 
+        cls.all = ActionSet.from_actions(*cls._bound_actions.values())
+
     def __new__(cls, *args, **kwargs):
         if cls is not Resource:
             raise TypeError(f"Resource {cls.__name__} is not instantiable")
         return super().__new__(cls, *args, **kwargs)
-
-    @property
-    def all(self) -> ActionSet:
-        values = self._bound_actions.values()
-        return ActionSet.from_actions(
-            *values, description="All actions for this resource"
-        )
