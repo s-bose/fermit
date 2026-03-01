@@ -1,4 +1,3 @@
-from asyncio import PriorityQueue
 import pytest
 from fermit.core import Action
 from fermit.core.resource import Resource
@@ -13,23 +12,79 @@ def test_resource_cannot_be_instantiated():
         Product()
 
 
-def test_resource_inheritance():
+def test_resource_cannot_inherit_from_another_resource():
+    class Fruit(Resource):
+        pass
+
+    with pytest.raises(TypeError):
+
+        class _(Fruit):
+            pass
+
+
+def test_resource_bound_action_position():
     class File(Resource):
         create = Action()
         read = Action()
         delete = Action()
 
-    class Product(File):
+    assert File.create.position == 0
+    assert File.read.position == 1
+    assert File.delete.position == 2
+
+
+def test_resource_bound_action_aliases():
+    class File(Resource):
+        create = Action(aliases=("add", "new"))
+        read = Action()
+        delete = Action()
+
+    assert File.create.position == 0
+    assert File.read.position == 1
+    assert File.delete.position == 2
+
+    assert File.create.aliases == ("add", "new")
+    assert File.add is File.create
+    assert File.new is File.create
+
+
+def test_resource_bound_action_aliases_conflict():
+    with pytest.raises(ValueError):
+
+        class _(Resource):
+            create = Action(aliases=("add", "new"))
+            read = Action()
+            delete = Action(aliases=("add",))
+
+
+def test_resource_enum_classes_can_be_instantiated_as_bound_actions():
+    class File(Resource):
         create = Action()
-        update = Action()
+        read = Action()
+        delete = Action()
 
-    assert Product.create is not File.create
-    assert Product.read is File.read
-    assert Product.delete is File.delete
+    assert File("create") is File.create
 
-    assert Product.create.position == 0
-    assert Product.read.position == 1
-    assert Product.delete.position == 2
-    assert Product.update.position == 3
 
-    assert Product.mask == (1 << 4) - 1
+def test_resource_mask():
+    class File(Resource):
+        create = Action()
+        read = Action()
+        delete = Action()
+
+    class Product(Resource):
+        create = Action()
+        read = Action()
+
+    assert File.create.mask() == 1 << 0
+    assert File.read.mask() == 1 << 1
+    assert File.delete.mask() == 1 << 2
+
+    assert File.mask() == File.mask("*") == (1 << 3) - 1
+
+    assert (
+        File.mask([File.create, File.delete]) == File.create.mask() | File.delete.mask()
+    )
+
+    with pytest.raises(ValueError):
+        File.mask([File.create, Product.create])

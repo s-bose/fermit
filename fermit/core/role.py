@@ -1,5 +1,5 @@
 from typing import ClassVar
-from abc import ABC, abstractmethod
+from abc import ABC
 
 from fermit.core.action import BoundAction, ActionSet
 

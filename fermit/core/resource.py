@@ -1,74 +1,119 @@
 from __future__ import annotations
 
-from typing import ClassVar, Mapping
+from typing import Any, ClassVar, Mapping
 
 from fermit.core.action import BoundAction
 from fermit.core.constants import MAX_ACTIONS_PER_RESOURCE
 
 
-class Resource:
-    mask: ClassVar[int] = 0
-    implies: dict[BoundAction, list[BoundAction]]
+class ResourceMeta(type):
 
-    _bound_actions: ClassVar[Mapping[str, BoundAction]]
+    def __call__(cls, *args, **kwargs):
+        if cls.__name__ == "Resource":
+            raise TypeError("Resource base class is not instantiable")
 
-    def __init_subclass__(cls, **kwargs):
-        super().__init_subclass__(**kwargs)
+        if len(args) == 1 and isinstance(args[0], str) and not kwargs:
+            name = args[0]
+            if name in cls.__dict__:
+                return cls.__dict__[name]
+            if name in cls.__aliases__:
+                return cls.__aliases__[name]
+            raise AttributeError(f"{cls.__name__} has no action '{name}'")
 
-        merged_actions: dict[str, BoundAction] = {}
+        raise TypeError(f"Resource {cls.__name__} is not instantiable")
+
+    def __getattr__(cls, name: str) -> Any:
+        if name in cls.__dict__:
+            return cls.__dict__[name]
+        if name in cls.__aliases__:
+            return cls.__aliases__[name]
+        raise AttributeError(f"{cls.__name__} has no action '{name}'")
+
+
+class Resource(metaclass=ResourceMeta):
+    """Base class that can be subclassed to make new Resource classes
+
+    A Resource subclass is immutable and frozen and
+    cannot be instantiated
+
+    Actions for a resource can be defined as class attributes and
+    initialised with calling `Action()` helper which will return a
+    `BoundAction` instance
+
+    The position of the action will be determined by the order of definition
+    in the class body, starting from 0
+
+    """
+
+    __resource_name__: ClassVar[str | None] = None
+    __bound_actions__: ClassVar[Mapping[str, BoundAction]]
+    __aliases__: ClassVar[Mapping[str, BoundAction]]
+
+    def __init_subclass__(cls) -> None:
         for base in cls.__bases__:
-            if issubclass(base, Resource) and base is not Resource:
-                # inherit all bound actions from parent resource classes
-                if not hasattr(base, "_bound_actions"):
-                    continue
-                for key, value in base._bound_actions.items():
-                    merged_actions[key] = value
+            if isinstance(base, ResourceMeta) and base.__name__ != "Resource":
+                raise TypeError(
+                    f"Resource {cls.__name__} cannot inherit from another Resource {base.__name__}"
+                )
 
-        filtered_fields = {
-            k: v for k, v in cls.__dict__.items() if isinstance(v, BoundAction)
+        aliases: dict[str, BoundAction] = {}
+        bound_actions: dict[str, BoundAction] = {}
+
+        filtered_actions = {
+            key: value
+            for key, value in cls.__dict__.items()
+            if isinstance(value, BoundAction)
         }
 
-        if not filtered_fields:
-            return
+        for index, (key, value) in enumerate(filtered_actions.items()):
 
-        if len(filtered_fields) > MAX_ACTIONS_PER_RESOURCE:
-            raise ValueError(
-                f"Resource {cls.__name__} cannot have more than {MAX_ACTIONS_PER_RESOURCE} actions"
+            if index >= MAX_ACTIONS_PER_RESOURCE:
+                raise ValueError(
+                    f"Action {key} does not have a position and the index {index} exceeds the maximum allowed actions per resource"
+                )
+
+            value = BoundAction(
+                name=key,
+                resource=cls,
+                position=index,
+                description=value.description,
+                aliases=value.aliases,
+                serialize_as=value.serialize_as,
             )
 
-        merged_actions.update(filtered_fields)
+            bound_actions[key] = value
+            setattr(cls, key, value)
 
-        for index, (key, value) in enumerate(merged_actions.items()):
-            if value.position and value.position != index:
-                raise ValueError(
-                    f"Action {key} has a position that is not the expected index {index}"
-                )
-            if value.position is None:
-                if index >= MAX_ACTIONS_PER_RESOURCE:
+            if value.aliases is not None:
+                for alias in value.aliases:
+                    if alias in aliases:
+                        raise ValueError(
+                            f"Action {key} has an alias {alias} that conflicts with another action"
+                        )
+                    aliases[alias] = value
+
+        cls.__bound_actions__ = bound_actions
+        cls.__aliases__ = aliases
+
+    @classmethod
+    def mask(cls, include: list[BoundAction] | str | None = None):
+        mask = 0
+
+        if isinstance(include, str) and include == "*" or include is None:
+            for value in cls.__bound_actions__.values():
+                if isinstance(value, BoundAction):
+                    mask |= value.mask()
+            return mask
+
+        if isinstance(include, list):
+            for action in include:
+                if action.resource is not cls:
                     raise ValueError(
-                        f"Action {key} does not have a position and the index {index} exceeds the maximum allowed actions per resource"
+                        f"Action {action.name} does not belong to resource {cls.__name__}"
                     )
+                mask |= action.mask()
+            return mask
 
-                value = BoundAction(
-                    name=key,
-                    resource=cls,
-                    position=index,
-                    description=value.description,
-                    aliases=value.aliases,
-                    serialize_as=value.serialize_as,
-                )
-            merged_actions[key] = value
-            cls.mask |= value.mask()
-            if cls.mask >= 1 << MAX_ACTIONS_PER_RESOURCE:
-                raise ValueError(
-                    f"Action {cls.__name__}.{key} exceedsthe maximum allowed actions per resource"
-                )
+        return mask
 
-        cls._bound_actions = merged_actions
-        for key, bound_action in merged_actions.items():
-            setattr(cls, key, bound_action)
-
-    def __new__(cls, *args, **kwargs):
-        if cls is not Resource:
-            raise TypeError(f"Resource {cls.__name__} is not instantiable")
-        return super().__new__(cls, *args, **kwargs)
+    def __new__(cls, *args, **kwargs): ...  # to satisfy type checker

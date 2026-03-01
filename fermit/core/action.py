@@ -43,6 +43,19 @@ def Action(
     aliases: tuple[str, ...] | None = None,
     serialize_as: str | None = None,
 ) -> BoundAction:
+    """
+    Helper function to create a `BoundAction` instance
+
+    Args:
+        name (str | None, optional): The name of the action
+        description (str | None, optional): A description of the action
+        aliases (tuple[str, ...] | None, optional): Alternative names for the action
+        serialize_as (str | None, optional): The name to use when serializing the action
+
+    Returns:
+        BoundAction
+    """
+
     return BoundAction(
         name=name, description=description, aliases=aliases, serialize_as=serialize_as
     )
@@ -68,7 +81,7 @@ class BoundAction:
 
     @property
     def value(self) -> str:
-        return repr(self)
+        return str(self.mask())
 
     def __eq__(self, other: object, /) -> bool:
         if not isinstance(other, BoundAction):

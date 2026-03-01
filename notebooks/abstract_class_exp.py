@@ -33,6 +33,20 @@ def _(Action, Resource, Role):
 
 @app.cell
 def _():
+    from enum import Enum
+
+    class Foo(Enum):
+        bar = "bar"
+        baz = "baz"
+
+
+    for v in Foo:
+        print(v.value)
+    return
+
+
+@app.cell
+def _():
     return
 
 
