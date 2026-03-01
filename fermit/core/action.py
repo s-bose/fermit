@@ -25,6 +25,8 @@ def Action(
     aliases: tuple[str, ...] | None = ...,
     serialize_as: str | None = ...,
 ) -> BoundAction: ...
+
+
 @overload
 def Action(
     *,
@@ -41,7 +43,9 @@ def Action(
     aliases: tuple[str, ...] | None = None,
     serialize_as: str | None = None,
 ) -> BoundAction:
-    return BoundAction(name=name, description=description, aliases=aliases, serialize_as=serialize_as)
+    return BoundAction(
+        name=name, description=description, aliases=aliases, serialize_as=serialize_as
+    )
 
 
 @dataclass(frozen=True, slots=True)
@@ -64,19 +68,23 @@ class BoundAction:
 
     @property
     def value(self) -> str:
-        return self.__repr__()
+        return repr(self)
 
     def __eq__(self, other: object, /) -> bool:
         if not isinstance(other, BoundAction):
             raise NotImplementedError()
 
-        return other.resource is self.resource and other.name == self.name and other.position == self.position
+        return (
+            other.resource is self.resource
+            and other.name == self.name
+            and other.position == self.position
+        )
 
     def __hash__(self) -> int:
         return hash((id(self.resource), self.name, self.position))
 
     def mask(self):
-        if not self.position:
+        if self.position is None:
             raise RuntimeError("position is not set, cannot mask")
 
         return 1 << self.position
@@ -100,4 +108,6 @@ class ActionSet:
         if not resources or len(resources) > 1:
             raise ValueError("all actions must belong to the same resource")
 
-        return cls(resource=list(resources)[0], actions=list(actions), description=description)
+        return cls(
+            resource=list(resources)[0], actions=list(actions), description=description
+        )

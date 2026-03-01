@@ -2,50 +2,71 @@ from __future__ import annotations
 
 from typing import ClassVar, Mapping
 
-from fermit.core.action import BoundAction, ActionSet
+from fermit.core.action import BoundAction
 from fermit.core.constants import MAX_ACTIONS_PER_RESOURCE
 
 
 class Resource:
+    mask: ClassVar[int] = 0
+    implies: dict[BoundAction, list[BoundAction]]
+
     _bound_actions: ClassVar[Mapping[str, BoundAction]]
-    all: ClassVar[ActionSet]
 
     def __init_subclass__(cls, **kwargs):
         super().__init_subclass__(**kwargs)
+
+        merged_actions: dict[str, BoundAction] = {}
         for base in cls.__bases__:
-            if base is not Resource and issubclass(base, Resource):
-                raise TypeError(
-                    f"Resource {cls.__name__} cannot inherit from another resource {base.__name__}"
-                )
+            if issubclass(base, Resource) and base is not Resource:
+                # inherit all bound actions from parent resource classes
+                if not hasattr(base, "_bound_actions"):
+                    continue
+                for key, value in base._bound_actions.items():
+                    merged_actions[key] = value
 
         filtered_fields = {
             k: v for k, v in cls.__dict__.items() if isinstance(v, BoundAction)
         }
+
+        if not filtered_fields:
+            return
+
         if len(filtered_fields) > MAX_ACTIONS_PER_RESOURCE:
             raise ValueError(
                 f"Resource {cls.__name__} cannot have more than {MAX_ACTIONS_PER_RESOURCE} actions"
             )
 
-        for index, (key, value) in enumerate(filtered_fields.items()):
+        merged_actions.update(filtered_fields)
+
+        for index, (key, value) in enumerate(merged_actions.items()):
             if value.position and value.position != index:
                 raise ValueError(
                     f"Action {key} has a position that is not the expected index {index}"
                 )
-            bound_action = BoundAction(
-                name=key,
-                resource=cls,
-                position=index,
-                description=value.description,
-                aliases=value.aliases,
-                serialize_as=value.serialize_as,
-            )
-            filtered_fields[key] = bound_action
+            if value.position is None:
+                if index >= MAX_ACTIONS_PER_RESOURCE:
+                    raise ValueError(
+                        f"Action {key} does not have a position and the index {index} exceeds the maximum allowed actions per resource"
+                    )
 
-        cls._bound_actions = filtered_fields
-        for key, bound_action in filtered_fields.items():
+                value = BoundAction(
+                    name=key,
+                    resource=cls,
+                    position=index,
+                    description=value.description,
+                    aliases=value.aliases,
+                    serialize_as=value.serialize_as,
+                )
+            merged_actions[key] = value
+            cls.mask |= value.mask()
+            if cls.mask >= 1 << MAX_ACTIONS_PER_RESOURCE:
+                raise ValueError(
+                    f"Action {cls.__name__}.{key} exceedsthe maximum allowed actions per resource"
+                )
+
+        cls._bound_actions = merged_actions
+        for key, bound_action in merged_actions.items():
             setattr(cls, key, bound_action)
-
-        cls.all = ActionSet.from_actions(*cls._bound_actions.values())
 
     def __new__(cls, *args, **kwargs):
         if cls is not Resource:
