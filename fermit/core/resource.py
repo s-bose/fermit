@@ -69,7 +69,9 @@ class Resource(metaclass=ResourceMeta):
 
             if index >= MAX_ACTIONS_PER_RESOURCE:
                 raise ValueError(
-                    f"Action {key} does not have a position and the index {index} exceeds the maximum allowed actions per resource"
+                    f"Action {key} does not have a position and "
+                    f"the index {index} exceeds the maximum allowed"
+                    " actions per resource"
                 )
 
             value = BoundAction(
@@ -79,6 +81,7 @@ class Resource(metaclass=ResourceMeta):
                 description=value.description,
                 aliases=value.aliases,
                 serialize_as=value.serialize_as,
+                implies=value.implies,
             )
 
             bound_actions[key] = value
@@ -101,8 +104,7 @@ class Resource(metaclass=ResourceMeta):
 
         if isinstance(include, str) and include == "*" or include is None:
             for value in cls.__bound_actions__.values():
-                if isinstance(value, BoundAction):
-                    mask |= value.mask()
+                mask |= value.mask()
             return mask
 
         if isinstance(include, list):

@@ -5,7 +5,7 @@ from fermit.core.action import BoundAction, ActionSet
 
 
 class Role(ABC):
-    name: ClassVar[str | None]
+    name: ClassVar[str | None] = None
     description: ClassVar[str | None] = None
 
     permissions: list[BoundAction | ActionSet]
@@ -16,4 +16,4 @@ class Role(ABC):
             cls.name = cls.__name__
 
         if not cls.permissions:
-            raise TypeError(f"Role {cls.__name__} must have permissions defined")
+            raise TypeError(f"Role {cls.name} must have permissions defined")

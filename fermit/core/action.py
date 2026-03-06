@@ -10,8 +10,10 @@ Actions, after created are immutable.
 
 from __future__ import annotations
 
+from typing import Callable, TYPE_CHECKING, overload
+from functools import lru_cache
+
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, overload
 
 if TYPE_CHECKING:
     from fermit.core.resource import Resource
@@ -24,6 +26,7 @@ def Action(
     description: str | None = ...,
     aliases: tuple[str, ...] | None = ...,
     serialize_as: str | None = ...,
+    implies: list[BoundAction] | Callable[[], list[BoundAction]] | None = ...,
 ) -> BoundAction: ...
 
 
@@ -33,6 +36,7 @@ def Action(
     description: str | None = ...,
     aliases: tuple[str, ...] | None = ...,
     serialize_as: str | None = ...,
+    implies: list[BoundAction] | Callable[[], list[BoundAction]] | None = ...,
 ) -> BoundAction: ...
 
 
@@ -42,6 +46,7 @@ def Action(
     description: str | None = None,
     aliases: tuple[str, ...] | None = None,
     serialize_as: str | None = None,
+    implies: list[BoundAction] | Callable[[], list[BoundAction]] | None = None,
 ) -> BoundAction:
     """
     Helper function to create a `BoundAction` instance
@@ -57,7 +62,11 @@ def Action(
     """
 
     return BoundAction(
-        name=name, description=description, aliases=aliases, serialize_as=serialize_as
+        name=name,
+        description=description,
+        aliases=aliases,
+        serialize_as=serialize_as,
+        implies=implies,
     )
 
 
@@ -69,6 +78,7 @@ class BoundAction:
     aliases: tuple[str, ...] | None = None
     resource: type[Resource] | None = None
     serialize_as: str | None = None
+    implies: list[BoundAction] | Callable[[], list[BoundAction]] | None = None
 
     def __repr__(self) -> str:
         if not self.resource:
@@ -79,9 +89,30 @@ class BoundAction:
             raise RuntimeError("no name configured, invalid action")
         return f"{self.resource.__name__}.{name} #{self.position}"
 
+    def __or__(self, other: object, /):
+        pass
+
     @property
     def value(self) -> str:
         return str(self.mask())
+
+    def mask(self):
+        if self.position is None:
+            raise RuntimeError("position is not set, cannot mask")
+
+        return 1 << self.position
+
+    @lru_cache(maxsize=None)
+    def implied_actions(self) -> frozenset[BoundAction]:
+        if self.implies is None:
+            return frozenset()
+
+        if callable(self.implies):
+            implied = self.implies()
+        else:
+            implied = self.implies
+
+        return frozenset(implied)
 
     def __eq__(self, other: object, /) -> bool:
         if not isinstance(other, BoundAction):
@@ -95,12 +126,6 @@ class BoundAction:
 
     def __hash__(self) -> int:
         return hash((id(self.resource), self.name, self.position))
-
-    def mask(self):
-        if self.position is None:
-            raise RuntimeError("position is not set, cannot mask")
-
-        return 1 << self.position
 
 
 @dataclass(frozen=True, slots=True)
