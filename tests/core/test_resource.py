@@ -1,5 +1,6 @@
 import pytest
 from fermit.core import Action
+from fermit.core.relation import Relation
 from fermit.core.resource import Resource
 
 
@@ -88,3 +89,53 @@ def test_resource_mask():
 
     with pytest.raises(ValueError):
         File.mask([File.create, Product.create])
+
+
+def test_resource_implied_actions():
+    class File(Resource):
+        read = Action()
+        create = Action()
+        read = Action()
+        delete = Action(implies=lambda: [Document.delete])
+
+    class Document(Resource):
+        read = Action(implies=[File.read])
+        create = Action(implies=[File.create])
+        delete = Action(implies=lambda: [File.delete])
+
+    assert Document.read.implied_actions() == frozenset([File.read])
+    assert Document.create.implied_actions() == frozenset([File.create])
+    assert Document.delete.implied_actions() == frozenset([File.delete])
+
+    assert File.delete.implied_actions() == frozenset([Document.delete])
+
+
+def test_resource_relationship():
+    class Repository(Resource):
+        read = Action()
+        write = Action()
+
+    class Folder(Resource):
+        read = Action()
+        write = Action()
+        delete = Action()
+
+        repository = Relation(Repository)
+
+    class File(Resource):
+        read = Action()
+        write = Action()
+
+        repository = Relation(
+            Repository, name="file_repository", description="File belongs to Repository"
+        )
+
+        folder = Relation(Folder, description="File belongs to Folder")
+
+    assert File.repository.target is Repository
+    assert File.repository.name == "file_repository"
+    assert File.file_repository.target is Repository
+    assert File.repository.description == "File belongs to Repository"
+    assert File.folder.target is Folder
+    assert File.folder.name == "folder"
+    assert File.folder.description == "File belongs to Folder"
