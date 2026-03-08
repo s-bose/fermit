@@ -91,7 +91,6 @@ class Resource(metaclass=ResourceMeta):
                 description=value.description,
                 aliases=value.aliases,
                 serialize_as=value.serialize_as,
-                implies=value.implies,
             )
 
             bound_actions[key] = value
@@ -148,3 +147,7 @@ class Resource(metaclass=ResourceMeta):
             setattr(cls, relation_key, bound_relation)
 
         return relationship_map
+
+    @classmethod
+    def actions(cls) -> frozenset[BoundAction]:
+        return frozenset(cls.__bound_actions__.values())

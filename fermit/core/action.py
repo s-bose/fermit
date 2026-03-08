@@ -26,7 +26,6 @@ def Action(
     description: str | None = ...,
     aliases: tuple[str, ...] | None = ...,
     serialize_as: str | None = ...,
-    implies: list[BoundAction] | Callable[[], list[BoundAction]] | None = ...,
 ) -> BoundAction: ...
 
 
@@ -36,7 +35,6 @@ def Action(
     description: str | None = ...,
     aliases: tuple[str, ...] | None = ...,
     serialize_as: str | None = ...,
-    implies: list[BoundAction] | Callable[[], list[BoundAction]] | None = ...,
 ) -> BoundAction: ...
 
 
@@ -46,7 +44,6 @@ def Action(
     description: str | None = None,
     aliases: tuple[str, ...] | None = None,
     serialize_as: str | None = None,
-    implies: list[BoundAction] | Callable[[], list[BoundAction]] | None = None,
 ) -> BoundAction:
     """
     Helper function to create a `BoundAction` instance
@@ -66,7 +63,6 @@ def Action(
         description=description,
         aliases=aliases,
         serialize_as=serialize_as,
-        implies=implies,
     )
 
 
@@ -78,7 +74,6 @@ class BoundAction:
     aliases: tuple[str, ...] | None = None
     resource: type[Resource] | None = None
     serialize_as: str | None = None
-    implies: list[BoundAction] | Callable[[], list[BoundAction]] | None = None
 
     def __repr__(self) -> str:
         if not self.resource:
@@ -101,18 +96,6 @@ class BoundAction:
             raise RuntimeError("position is not set, cannot mask")
 
         return 1 << self.position
-
-    @lru_cache(maxsize=None)
-    def implied_actions(self) -> frozenset[BoundAction]:
-        if self.implies is None:
-            return frozenset()
-
-        if callable(self.implies):
-            implied = self.implies()
-        else:
-            implied = self.implies
-
-        return frozenset(implied)
 
     def __eq__(self, other: object, /) -> bool:
         if not isinstance(other, BoundAction):
