@@ -10,9 +10,7 @@ Actions, after created are immutable.
 
 from __future__ import annotations
 
-from typing import Callable, TYPE_CHECKING, overload
-from functools import lru_cache
-
+from typing import TYPE_CHECKING, overload
 from dataclasses import dataclass
 
 if TYPE_CHECKING:

@@ -46,7 +46,7 @@ class Resource(metaclass=ResourceMeta):
 
     """
 
-    __resource_name__: ClassVar[str | None] = None
+    name: ClassVar[str | None] = None
     __bound_actions__: ClassVar[Mapping[str, BoundAction]]
     __relationships__: ClassVar[Mapping[str, BoundRelation]]
     __aliases__: ClassVar[Mapping[str, BoundAction]]
@@ -58,6 +58,8 @@ class Resource(metaclass=ResourceMeta):
                     f"Resource {cls.__name__} cannot inherit from another Resource {base.__name__}"
                 )
 
+        if cls.name is None:
+            cls.name = cls.__name__
         aliases: dict[str, BoundAction] = {}
         bound_actions: dict[str, BoundAction] = {}
 

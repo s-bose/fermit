@@ -9,6 +9,11 @@ dependencies = [
     "mypy>=1.19.1",
 ]
 
+[project.optional-dependencies]
+postgresql = [
+    "sqlalchemy>=2.0",
+]
+
 [tool.mypy]
 plugins = ["fermit_plugin"]
 

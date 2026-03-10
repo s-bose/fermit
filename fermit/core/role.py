@@ -1,7 +1,8 @@
-from typing import ClassVar
 from abc import ABC
+from typing import ClassVar
 
-from fermit.core.action import BoundAction, ActionSet
+from fermit.core import ActionSet
+from fermit.core.action import BoundAction
 
 
 class Role(ABC):
@@ -16,4 +17,10 @@ class Role(ABC):
             cls.name = cls.__name__
 
         if not cls.permissions:
-            raise TypeError(f"Role {cls.name} must have permissions defined")
+            return
+
+        permissions_set = set(cls.permissions)
+
+        for base in cls.__bases__:
+            if issubclass(base, Role) and base.__name__ != "Role":
+                permissions_set.update(base.permissions)
