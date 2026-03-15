@@ -1,6 +1,6 @@
-from typing import Any, Protocol, runtime_checkable
+from typing import Any, Protocol
 
-from fermit.core.meta import BoundAction
+from fermit.core.action import BoundAction
 
 
 class PolicyEnforcer(Protocol):

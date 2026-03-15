@@ -1,15 +1,18 @@
 from __future__ import annotations
 
-from typing import Any, ClassVar, Mapping
+from typing import TYPE_CHECKING, Any, ClassVar, Mapping
 
+from fermit.core import ActionSet
 from fermit.core.action import BoundAction
 from fermit.core.constants import MAX_ACTIONS_PER_RESOURCE
 from fermit.core.relation import BoundRelation
 
+if TYPE_CHECKING:
+    from fermit.core.role import RoleInstance
+
 
 class ResourceMeta(type):
-
-    def __call__(cls, *args, **kwargs):
+    def __call__(cls, *args: Any, **kwargs: Any):
         if cls.__name__ == "Resource":
             raise TypeError("Resource base class is not instantiable")
 
@@ -47,6 +50,8 @@ class Resource(metaclass=ResourceMeta):
     """
 
     name: ClassVar[str | None] = None
+    roles: Mapping[str, RoleInstance] = {}
+
     __bound_actions__: ClassVar[Mapping[str, BoundAction]]
     __relationships__: ClassVar[Mapping[str, BoundRelation]]
     __aliases__: ClassVar[Mapping[str, BoundAction]]
@@ -54,31 +59,20 @@ class Resource(metaclass=ResourceMeta):
     def __init_subclass__(cls) -> None:
         for base in cls.__bases__:
             if isinstance(base, ResourceMeta) and base.__name__ != "Resource":
-                raise TypeError(
-                    f"Resource {cls.__name__} cannot inherit from another Resource {base.__name__}"
-                )
+                raise TypeError(f"Resource {cls.__name__} cannot inherit from another Resource {base.__name__}")
 
         if cls.name is None:
             cls.name = cls.__name__
         aliases: dict[str, BoundAction] = {}
         bound_actions: dict[str, BoundAction] = {}
 
-        filtered_actions = {
-            key: value
-            for key, value in cls.__dict__.items()
-            if isinstance(value, BoundAction)
-        }
+        filtered_actions = {key: value for key, value in cls.__dict__.items() if isinstance(value, BoundAction)}
 
-        filtered_relations = {
-            key: value
-            for key, value in cls.__dict__.items()
-            if isinstance(value, BoundRelation)
-        }
+        filtered_relations = {key: value for key, value in cls.__dict__.items() if isinstance(value, BoundRelation)}
 
         cls.__relationships__ = cls.initialize_relationships(filtered_relations)
 
         for index, (key, value) in enumerate(filtered_actions.items()):
-
             if index >= MAX_ACTIONS_PER_RESOURCE:
                 raise ValueError(
                     f"Action {key} does not have a position and "
@@ -87,7 +81,7 @@ class Resource(metaclass=ResourceMeta):
                 )
 
             value = BoundAction(
-                name=key,
+                name=value.name if value.name else key,
                 resource=cls,
                 position=index,
                 description=value.description,
@@ -101,16 +95,30 @@ class Resource(metaclass=ResourceMeta):
             if value.aliases is not None:
                 for alias in value.aliases:
                     if alias in aliases:
-                        raise ValueError(
-                            f"Action {key} has an alias {alias} that conflicts with another action"
-                        )
+                        raise ValueError(f"Action {key} has an alias {alias} that conflicts with another action")
                     aliases[alias] = value
 
         cls.__bound_actions__ = bound_actions
         cls.__aliases__ = aliases
 
+        for role_name, role in cls.roles.items():
+            if role.name is None:
+                role.name = role_name
+            role_permissions = set[BoundAction]()
+
+            for permission in list(role.permissions):
+                if permission.name in cls.__bound_actions__:
+                    role_permissions.add(cls.__bound_actions__[permission.name])
+                else:
+                    raise ValueError(
+                        f"Role '{role_name}' has permission for action '{permission.name}' "
+                        f"that does not exist in resource '{cls.__name__}'"
+                    )
+
+            role.permissions = list(role_permissions)
+
     @classmethod
-    def mask(cls, include: list[BoundAction] | str | None = None):
+    def mask(cls, include: str | list[BoundAction] | None = None):
         mask = 0
 
         if isinstance(include, str) and include == "*" or include is None:
@@ -121,20 +129,23 @@ class Resource(metaclass=ResourceMeta):
         if isinstance(include, list):
             for action in include:
                 if action.resource is not cls:
-                    raise ValueError(
-                        f"Action {action.name} does not belong to resource {cls.__name__}"
-                    )
+                    raise ValueError(f"Action {action.name} does not belong to resource {cls.__name__}")
                 mask |= action.mask()
             return mask
 
         return mask
 
-    def __new__(cls, *args, **kwargs): ...  # to satisfy type checker
+    @classmethod
+    def all(cls) -> ActionSet:
+        return ActionSet.from_actions(
+            *cls.__bound_actions__.values(),
+            description=f"All actions for {cls.__name__}",
+        )
+
+    def __new__(cls, *args: Any, **kwargs: Any): ...  # to satisfy type checker
 
     @classmethod
-    def initialize_relationships(
-        cls, relations: dict[str, BoundRelation]
-    ) -> dict[str, BoundRelation]:
+    def initialize_relationships(cls, relations: dict[str, BoundRelation]) -> dict[str, BoundRelation]:
         relationship_map: dict[str, BoundRelation] = {}
         for relation_var_name, relation in relations.items():
             relation_key = relation.name if relation.name else relation_var_name

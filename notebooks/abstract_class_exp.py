@@ -47,6 +47,47 @@ def _():
 
 @app.cell
 def _():
+    import ast
+
+
+    x = ast.FunctionDef(
+        name="foo",
+        args=ast.arguments(
+            posonlyargs=[],
+            args=[
+                ast.arg(
+                    arg="bar"
+                )
+            ]
+        ),
+        body=[
+            ast.Return(value=ast.Constant(1))
+        ]
+    )
+    return ast, x
+
+
+@app.cell
+def _(ast, x):
+    module = ast.Module(body=[x])
+    ast.fix_missing_locations(module)
+    code = compile(module, "<foo>", "exec")
+    bin = exec(code, {"foo": 123})
+
+    print(code)
+    return (code,)
+
+
+@app.cell
+def _(code):
+    import dis
+
+    dis.dis(code.co_code)
+    return
+
+
+@app.cell
+def _():
     return
 
 

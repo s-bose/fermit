@@ -10,8 +10,8 @@ Actions, after created are immutable.
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, overload
 from dataclasses import dataclass
+from typing import TYPE_CHECKING, overload
 
 if TYPE_CHECKING:
     from fermit.core.resource import Resource
@@ -64,7 +64,7 @@ def Action(
     )
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(slots=True)
 class BoundAction:
     name: str | None = None
     position: int | None = None
@@ -82,9 +82,6 @@ class BoundAction:
             raise RuntimeError("no name configured, invalid action")
         return f"{self.resource.__name__}.{name} #{self.position}"
 
-    def __or__(self, other: object, /):
-        pass
-
     @property
     def value(self) -> str:
         return str(self.mask())
@@ -96,17 +93,20 @@ class BoundAction:
         return 1 << self.position
 
     def __eq__(self, other: object, /) -> bool:
-        if not isinstance(other, BoundAction):
-            raise NotImplementedError()
+        if isinstance(other, BoundAction):
+            return other.resource is self.resource and other.name == self.name and other.position == self.position
 
-        return (
-            other.resource is self.resource
-            and other.name == self.name
-            and other.position == self.position
-        )
+        if isinstance(other, ActionSet):
+            return other.resource is self.resource and self.mask() & other.mask() != 0
+
+        raise NotImplementedError(f"cannot compare BoundAction with {type(other)}")
 
     def __hash__(self) -> int:
         return hash((id(self.resource), self.name, self.position))
+
+    def __set_name__(self, owner: type[Resource], name: str):
+        if self.name is None:
+            self.name = name
 
 
 @dataclass(frozen=True, slots=True)
@@ -127,6 +127,7 @@ class ActionSet:
         if not resources or len(resources) > 1:
             raise ValueError("all actions must belong to the same resource")
 
-        return cls(
-            resource=list(resources)[0], actions=list(actions), description=description
-        )
+        return cls(resource=list(resources)[0], actions=list(actions), description=description)
+
+    def __hash__(self) -> int:
+        return hash((id(self.resource), self.mask()))

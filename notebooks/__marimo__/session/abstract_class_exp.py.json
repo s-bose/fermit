@@ -51,7 +51,60 @@
       ]
     },
     {
-      "id": "qKNY",
+      "id": "bkHC",
+      "code_hash": "2cf005b5be6929d02c92d48c62019cb7",
+      "outputs": [
+        {
+          "type": "data",
+          "data": {
+            "text/plain": ""
+          }
+        }
+      ],
+      "console": []
+    },
+    {
+      "id": "oEUo",
+      "code_hash": "b59023916c50870ecd1fce75b69b7a84",
+      "outputs": [
+        {
+          "type": "data",
+          "data": {
+            "text/plain": ""
+          }
+        }
+      ],
+      "console": [
+        {
+          "type": "stream",
+          "name": "stdout",
+          "text": "<code object <module> at 0x10e0350d0, file \"<foo>\", line 1>\n",
+          "mimetype": "text/plain"
+        }
+      ]
+    },
+    {
+      "id": "agOR",
+      "code_hash": "4b10b0ec5d8916fd5acf9f1045aa268f",
+      "outputs": [
+        {
+          "type": "data",
+          "data": {
+            "text/plain": ""
+          }
+        }
+      ],
+      "console": [
+        {
+          "type": "stream",
+          "name": "stdout",
+          "text": "          RESUME                   0\n          LOAD_CONST               0\n          MAKE_FUNCTION\n          STORE_NAME               0\n          RETURN_CONST             1\n",
+          "mimetype": "text/plain"
+        }
+      ]
+    },
+    {
+      "id": "smKv",
       "code_hash": null,
       "outputs": [],
       "console": []

@@ -1,11 +1,11 @@
 import pytest
+
 from fermit.core import Action
 from fermit.core.relation import Relation
 from fermit.core.resource import Resource
 
 
 def test_resource_cannot_be_instantiated():
-
     class Product(Resource):
         pass
 
@@ -83,9 +83,7 @@ def test_resource_mask():
 
     assert File.mask() == File.mask("*") == (1 << 3) - 1
 
-    assert (
-        File.mask([File.create, File.delete]) == File.create.mask() | File.delete.mask()
-    )
+    assert File.mask([File.create, File.delete]) == File.create.mask() | File.delete.mask()
 
     with pytest.raises(ValueError):
         File.mask([File.create, Product.create])
@@ -107,9 +105,7 @@ def test_resource_relationship():
         read = Action()
         write = Action()
 
-        repository = Relation(
-            Repository, name="file_repository", description="File belongs to Repository"
-        )
+        repository = Relation(Repository, name="file_repository", description="File belongs to Repository")
 
         folder = Relation(Folder, description="File belongs to Folder")
 
@@ -120,3 +116,45 @@ def test_resource_relationship():
     assert File.folder.target is Folder
     assert File.folder.name == "folder"
     assert File.folder.description == "File belongs to Folder"
+
+
+def test_resource_action_setname():
+    class File(Resource):
+        create = Action(description="Create a file")
+        read = Action(name="read123", description="Read a file")
+
+    assert File.create.name == "create"
+    assert File.read.name == "read123"
+
+
+def test_resource_with_roles():
+    from fermit.core.role import Role
+
+    class File(Resource):
+        create = Action()
+        read = Action()
+        delete = Action()
+
+        roles = {
+            "editor": Role(
+                permissions=[create, read],
+            ),
+            "admin": Role(
+                name="Administrator",
+                permissions=[create, read, delete],
+            ),
+        }
+
+    assert "editor" in File.roles
+    assert "admin" in File.roles
+
+    assert File.roles["editor"].name == "editor"
+    assert File.roles["admin"].name == "Administrator"
+
+    assert File.read in File.roles["editor"].permissions
+    assert File.create in File.roles["editor"].permissions
+    assert File.delete not in File.roles["editor"].permissions
+
+    assert File.read in File.roles["admin"].permissions
+    assert File.create in File.roles["admin"].permissions
+    assert File.delete in File.roles["admin"].permissions

@@ -1,16 +1,53 @@
-from fermit.core.action import Action
-from fermit.core.resource import Resource
+from fermit.core import Action, Resource
+from fermit.core.role import Role
 
 
-class Product(Resource):
+class Repository(Resource):
+    create = Action()
     read = Action()
-    create = Action(description="Create a new product", aliases=("c", "create"))
-    update = Action(description="Update an existing product", aliases=("u", "update"))
-    delete = Action(description="Delete an existing product", serialize_as="product -> rm")
+    update = Action()
+    delete = Action()
+
+    roles = {
+        "user": Role(permissions=[read, create, update]),
+        "admin": Role(
+            permissions=[create, read, update, delete],
+        ),
+    }
 
 
-if __name__ == "__main__":
-    print(Product.read.value)
-    print(Product.create.value)
-    print(Product.update.value)
-    print(Product.delete.value)
+class Folder(Resource):
+    create = Action()
+    read = Action()
+    update = Action()
+    delete = Action()
+
+    roles = {
+        "user": Role(permissions=[read, create, update]),
+        "admin": Role(
+            permissions=[create, read, update, delete],
+        ),
+    }
+
+
+## Roles
+
+
+class User(Role):
+    permissions = [
+        Repository.read,
+        Repository.create,
+        Repository.update,
+    ]
+
+
+class Admin(User):
+    permissions = [
+        Repository.delete,
+        Folder.create,
+        Folder.read,
+        Folder.update,
+        Folder.delete,
+    ]
+
+    scopes = "*"
