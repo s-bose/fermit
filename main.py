@@ -1,4 +1,5 @@
 from fermit.core import Action, Resource
+from fermit.core.relation import Relation
 from fermit.core.role import Role
 
 
@@ -22,8 +23,12 @@ class Folder(Resource):
     update = Action()
     delete = Action()
 
+    parent = Relation(Repository)
+
     roles = {
-        "user": Role(permissions=[read, create, update]),
+        "user": Role(
+            permissions=[read, create, update],
+        ),
         "admin": Role(
             permissions=[create, read, update, delete],
         ),

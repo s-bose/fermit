@@ -59,16 +59,22 @@ class Resource(metaclass=ResourceMeta):
     def __init_subclass__(cls) -> None:
         for base in cls.__bases__:
             if isinstance(base, ResourceMeta) and base.__name__ != "Resource":
-                raise TypeError(f"Resource {cls.__name__} cannot inherit from another Resource {base.__name__}")
+                raise TypeError(
+                    f"Resource {cls.__name__} cannot inherit from another Resource {base.__name__}"
+                )
 
         if cls.name is None:
             cls.name = cls.__name__
         aliases: dict[str, BoundAction] = {}
         bound_actions: dict[str, BoundAction] = {}
 
-        filtered_actions = {key: value for key, value in cls.__dict__.items() if isinstance(value, BoundAction)}
+        filtered_actions = {
+            key: value for key, value in cls.__dict__.items() if isinstance(value, BoundAction)
+        }
 
-        filtered_relations = {key: value for key, value in cls.__dict__.items() if isinstance(value, BoundRelation)}
+        filtered_relations = {
+            key: value for key, value in cls.__dict__.items() if isinstance(value, BoundRelation)
+        }
 
         cls.__relationships__ = cls.initialize_relationships(filtered_relations)
 
@@ -95,7 +101,9 @@ class Resource(metaclass=ResourceMeta):
             if value.aliases is not None:
                 for alias in value.aliases:
                     if alias in aliases:
-                        raise ValueError(f"Action {key} has an alias {alias} that conflicts with another action")
+                        raise ValueError(
+                            f"Action {key} has an alias {alias} that conflicts with another action"
+                        )
                     aliases[alias] = value
 
         cls.__bound_actions__ = bound_actions

@@ -73,5 +73,11 @@ class Role:
 
         return frozenset(cls.scopes)
 
-    def __new__(cls, name: str | None = None, *, permissions: list[BoundAction]) -> RoleInstance:
+    def __new__(
+        cls,
+        name: str | None = None,
+        *,
+        permissions: list[BoundAction],
+        derived: dict[str, BoundAction] | None = None,
+    ) -> RoleInstance:
         return RoleInstance(name=name, permissions=permissions)
